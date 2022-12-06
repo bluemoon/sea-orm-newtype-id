@@ -1,10 +1,12 @@
 //! ID Generation
 //!
 //! We use a macro to generate the appropriate structs that we need
+use proc_macro2::TokenStream;
 use sea_orm::{
     sea_query::{ColumnType, ValueType, ValueTypeErr},
     Value,
 };
+extern crate proc_macro;
 
 use nanoid::nanoid;
 
@@ -43,6 +45,10 @@ pub trait PrefixedId {
     }
 }
 
+#[proc_macro]
+pub fn def_id(input: TokenStream) -> TokenStream {}
+
+#[macro_export]
 macro_rules! def_id {
     ($struct_name:ident, $prefix:literal $(| $alt_prefix:literal)* $(, { $generate_hint:tt })?) => {
       ////////////////////////////////////////////////
