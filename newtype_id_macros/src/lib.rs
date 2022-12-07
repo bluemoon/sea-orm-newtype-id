@@ -14,8 +14,6 @@ struct DefId {
 
 impl Parse for DefId {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        dbg!(input);
-
         let struct_name: Ident = input.parse()?;
         let _comma: Token![,] = input.parse()?;
         let prefix: ExprLit = input.parse()?;
