@@ -1,0 +1,17 @@
+[package]
+name = "examples"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Bradford Toney <bradford.toney@gmail.com>"]
+description = "Sea-ORM newtyped IDs (stripe style)"
+categories = ["database"]
+keywords = ["sea-orm", "stripe", "id"]
+publish = false
+
+[[bin]]
+name = "example"
+path = "src/bin.rs"
+
+[dependencies]
+sea_orm_newtype_id = { path = "../newtype_id", version = "0.1.0" }

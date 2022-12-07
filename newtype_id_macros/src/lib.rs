@@ -2,12 +2,14 @@
 //!
 //! We use a macro to generate the appropriate structs that we need
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 
 extern crate proc_macro;
 
 #[proc_macro]
 pub fn def_id(_input: TokenStream) -> TokenStream {
+    let async_graphql_impl = FeatureAsyncGraphQL(cfg!(async_graphql));
+
     quote! {
     ////////////////////////////////////////////////
        // Main Struct
@@ -136,7 +138,6 @@ pub fn def_id(_input: TokenStream) -> TokenStream {
        impl sea_orm::TryFromU64 for $struct_name {
          fn try_from_u64(_n: u64) -> Result<Self, sea_orm::DbErr> {
            Err(sea_orm::DbErr::ConvertFromU64(stringify!($struct_name)))
-
          }
        }
 
@@ -163,22 +164,32 @@ pub fn def_id(_input: TokenStream) -> TokenStream {
          }
        }
 
-       // TODO: make this a config
-       #[async_graphql::Scalar]
-       impl async_graphql::ScalarType for $struct_name {
-         fn parse(value: async_graphql::Value) -> async_graphql::InputValueResult<Self> {
-           if let async_graphql::Value::String(value) = &value {
-             Ok($struct_name(value.into()))
-           } else {
-             Err(async_graphql::InputValueError::expected_type(value))
-           }
-         }
-
-         fn to_value(&self) -> async_graphql::Value {
-           async_graphql::Value::String(self.to_string())
-         }
-       }
-
+       #async_graphql_impl
      }
     .into()
+}
+
+struct FeatureAsyncGraphQL(bool);
+
+impl ToTokens for FeatureAsyncGraphQL {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        if self.0 {
+            tokens.extend(quote! {
+             #[async_graphql::Scalar]
+             impl async_graphql::ScalarType for $struct_name {
+               fn parse(value: async_graphql::Value) -> async_graphql::InputValueResult<Self> {
+                 if let async_graphql::Value::String(value) = &value {
+                   Ok($struct_name(value.into()))
+                 } else {
+                   Err(async_graphql::InputValueError::expected_type(value))
+                 }
+               }
+
+               fn to_value(&self) -> async_graphql::Value {
+                 async_graphql::Value::String(self.to_string())
+               }
+             }
+            })
+        }
+    }
 }
