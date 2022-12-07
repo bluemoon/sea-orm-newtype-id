@@ -1,4 +1,4 @@
-# Sea-orm Newtype ID is an ID generation system for Sea-Orm 🐚
+# Sea-orm Newtype ID is a ID generation system 🐚
 
 - 🎲 Currently uses `nanoid`
 - 🦓 Stripe style IDs allow for users to see what kind of IDs are being used without having to log them in the database
