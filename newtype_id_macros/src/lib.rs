@@ -32,8 +32,9 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
         prefix,
     } = syn::parse_macro_input!(tokens as DefId);
 
-    let async_graphql_impl = FeatureAsyncGraphQL::new(cfg!(async_graphql), struct_name.clone());
-    let serde_impl = FeatureSerde::new(cfg!(serde), struct_name.clone());
+    let async_graphql_impl =
+        FeatureAsyncGraphQL::new(cfg!(with_async_graphql), struct_name.clone());
+    let serde_impl = FeatureSerde::new(cfg!(with_serde), struct_name.clone());
 
     quote! {
       ////////////////////////////////////////////////
