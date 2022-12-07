@@ -34,7 +34,10 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
         prefix,
     } = syn::parse_macro_input!(tokens as DefId);
 
-    let async_graphql_impl = FeatureAsyncGraphQL(cfg!(async_graphql));
+    // TODO: fixme
+    let alt_prefix = "TODO";
+    let async_graphql_impl = FeatureAsyncGraphQL::new(cfg!(async_graphql), struct_name.clone());
+    let serde_impl = FeatureSerde::new(cfg!(serde), struct_name.clone());
 
     quote! {
       ////////////////////////////////////////////////
@@ -57,52 +60,52 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
         }
       }
 
-      impl Default for $struct_name {
+      impl Default for #struct_name {
          fn default() -> Self {
            Self::new()
          }
       }
 
-      impl PartialEq<str> for $struct_name {
+      impl PartialEq<str> for #struct_name {
         fn eq(&self, other: &str) -> bool {
             self.as_str() == other
         }
       }
 
-      impl PartialEq<&str> for $struct_name {
+      impl PartialEq<&str> for #struct_name {
         fn eq(&self, other: &&str) -> bool {
             self.as_str() == *other
         }
       }
 
-      impl PartialEq<String> for $struct_name {
+      impl PartialEq<String> for #struct_name {
         fn eq(&self, other: &String) -> bool {
             self.as_str() == other
         }
       }
 
-      impl std::fmt::Display for $struct_name {
+      impl std::fmt::Display for #struct_name {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
           self.0.fmt(f)
         }
       }
 
-     impl std::str::FromStr for $struct_name {
-      type Err = ParseIdError;
+     impl std::str::FromStr for #struct_name {
+      type Err = sea_orm_newtype_id::ParseIdError;
 
       fn from_str(s: &str) -> Result<Self, Self::Err> {
           if !s.starts_with(#prefix) $(
-              && !s.starts_with($alt_prefix)
+              && !s.starts_with(#alt_prefix)
           )* {
             // N.B. For debugging
-            eprintln!("bad id is: {} (expected: {:?})", s, $prefix);
+            eprintln!("bad id is: {} (expected: {:?})", s, #prefix);
 
             Err(ParseIdError {
-                typename: stringify!($struct_name),
-                expected: stringify!(id to start with $prefix $(or $alt_prefix)*),
+                typename: stringify!(#struct_name),
+                expected: stringify!(id to start with #prefix $(or $alt_prefix)*),
             })
           } else {
-            Ok($struct_name(s.into()))
+            Ok(#struct_name(s.into()))
           }
         }
       }
@@ -111,40 +114,20 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
         const PREFIX: &'static str = #prefix;
       }
 
-      // TODO: make this a config
-      impl serde::Serialize for #struct_name {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-          S: serde::ser::Serializer,
-        {
-          self.as_str().serialize(serializer)
+      impl From<#struct_name> for sea_orm::Value {
+        fn from(v: #struct_name) -> Self {
+          sea_orm::Value::String(Some(Box::new(v.as_str().to_string())))
         }
       }
 
-      impl<'de> serde::Deserialize<'de> for $struct_name {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-          D: serde::de::Deserializer<'de>,
-        {
-          let s: String = serde::Deserialize::deserialize(deserializer)?;
-          s.parse::<Self>().map_err(::serde::de::Error::custom)
-        }
-      }
-
-      impl From<$struct_name> for Value {
-        fn from(v: $struct_name) -> Self {
-          Value::String(Some(Box::new(v.as_str().to_string())))
-        }
-      }
-
-      impl ValueType for $struct_name {
-        fn try_from(v: Value) -> Result<Self, sea_orm::sea_query::ValueTypeErr> {
+      impl sea_orm::sea_query::ValueType for #struct_name {
+        fn try_from(v: sea_orm::Value) -> Result<Self, sea_orm::sea_query::ValueTypeErr> {
           match v {
-            Value::String(Some(x)) => {
+            sea_orm::Value::String(Some(x)) => {
               let v: String = *x;
               Ok(Self(v.into()))
             }
-            _ => Err(ValueTypeErr),
+            _ => Err(sea_orm::sea_query::ValueTypeErr),
           }
         }
 
@@ -156,56 +139,113 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
           stringify!($type).to_owned()
         }
 
-        fn column_type() -> ColumnType {
-          ColumnType::String(Some(26))
+        fn column_type() -> sea_orm::ColumnType {
+          sea_orm::ColumnType::String(Some(26))
         }
       }
 
-      impl sea_orm::TryFromU64 for $struct_name {
+      impl sea_orm::TryFromU64 for #struct_name {
         fn try_from_u64(_n: u64) -> Result<Self, sea_orm::DbErr> {
-          Err(sea_orm::DbErr::ConvertFromU64(stringify!($struct_name)))
+          Err(sea_orm::DbErr::ConvertFromU64(stringify!(#struct_name)))
         }
       }
 
-      impl sea_orm::TryGetable for $struct_name {
+      impl sea_orm::TryGetable for #struct_name {
         fn try_get(
           res: &sea_orm::QueryResult,
           pre: &str,
           col: &str,
         ) -> Result<Self, sea_orm::TryGetError> {
           let val: String = res.try_get(pre, col).map_err(sea_orm::TryGetError::DbErr)?;
-          Ok($struct_name(val.into()))
+          Ok(#struct_name(val.into()))
         }
       }
 
-      impl sea_orm::sea_query::Nullable for $struct_name {
+      impl sea_orm::sea_query::Nullable for #struct_name {
         fn null() -> sea_orm::Value {
           sea_orm::Value::String(None)
         }
       }
 
-      impl sea_orm::IntoActiveValue<Self> for $struct_name {
+      impl sea_orm::IntoActiveValue<Self> for #struct_name {
         fn into_active_value(self) -> sea_orm::ActiveValue<Self> {
           sea_orm::Set(self)
         }
       }
 
       #async_graphql_impl
+      #serde_impl
     }
     .into()
 }
 
-struct FeatureAsyncGraphQL(bool);
+struct FeatureSerde {
+    enabled: bool,
+    struct_name: Ident,
+}
+
+impl FeatureSerde {
+    fn new(enabled: bool, struct_name: Ident) -> Self {
+        Self {
+            enabled,
+            struct_name,
+        }
+    }
+}
+
+impl ToTokens for FeatureSerde {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let struct_name = self.struct_name.clone();
+        if self.enabled {
+            tokens.extend(quote! {
+                impl serde::Serialize for #struct_name {
+                  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                  where
+                    S: serde::ser::Serializer,
+                  {
+                    self.as_str().serialize(serializer)
+                  }
+                }
+
+                impl<'de> serde::Deserialize<'de> for #struct_name {
+                  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                  where
+                    D: serde::de::Deserializer<'de>,
+                  {
+                    let s: String = serde::Deserialize::deserialize(deserializer)?;
+                    s.parse::<Self>().map_err(::serde::de::Error::custom)
+                  }
+                }
+            });
+        }
+    }
+}
+
+struct FeatureAsyncGraphQL {
+    enabled: bool,
+    struct_name: Ident,
+}
+
+impl FeatureAsyncGraphQL {
+    fn new(enabled: bool, struct_name: Ident) -> Self {
+        Self {
+            enabled,
+            struct_name,
+        }
+    }
+}
 
 impl ToTokens for FeatureAsyncGraphQL {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        if self.0 {
+        let struct_name = self.struct_name.clone();
+
+        if self.enabled {
             tokens.extend(quote! {
              #[async_graphql::Scalar]
-             impl async_graphql::ScalarType for $struct_name {
+             impl async_graphql::ScalarType for #struct_name {
                fn parse(value: async_graphql::Value) -> async_graphql::InputValueResult<Self> {
                  if let async_graphql::Value::String(value) = &value {
-                   Ok($struct_name(value.into()))
+                   Ok(#struct_name(value.into()))
                  } else {
                    Err(async_graphql::InputValueError::expected_type(value))
                  }

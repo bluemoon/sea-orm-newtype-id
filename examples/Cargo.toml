@@ -15,3 +15,4 @@ path = "src/bin.rs"
 
 [dependencies]
 sea_orm_newtype_id = { path = "../newtype_id", version = "0.1.0" }
+sea-orm = "0.10.0"
