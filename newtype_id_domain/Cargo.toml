@@ -1,0 +1,16 @@
+[package]
+name = "sea_orm_newtype_id_domain"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Bradford Toney <bradford.toney@gmail.com>"]
+description = "Sea-ORM newtyped IDs (stripe style)"
+categories = ["database"]
+keywords = ["sea-orm", "stripe", "id"]
+
+[lib]
+name = "sea_orm_newtype_id_domain"
+path = "src/lib.rs"
+
+[dependencies]
+nanoid = "0.4.0"

@@ -1,23 +1,2 @@
-[package]
-name = "sea-orm-newtype-id"
-version = "0.1.0"
-edition = "2021"
-license = "MIT"
-authors = ["Bradford Toney <bradford.toney@gmail.com>"]
-description = "Sea-ORM newtyped IDs (stripe style)"
-categories = ["database"]
-keywords = ["sea-orm", "stripe", "id"]
-
-[lib]
-name = "sea_orm_newtype_id"
-path = "src/lib.rs"
-
-[dependencies]
-nanoid = "0.4.0"
-proc-macro2 = "1"
-quote = "1"
-sea-orm = "0.10.0"
-syn = { version = "1", features = ["extra-traits"] }
-
-[features]
-default = []
+[workspace]
+members = ["newtype_id", "newtype_id_macros"]

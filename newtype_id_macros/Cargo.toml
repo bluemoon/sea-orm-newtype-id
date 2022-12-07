@@ -1,0 +1,22 @@
+[package]
+name = "sea_orm_newtype_id_macros"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Bradford Toney <bradford.toney@gmail.com>"]
+description = "Sea-ORM newtyped IDs (stripe style)"
+categories = ["database"]
+keywords = ["sea-orm", "stripe", "id"]
+
+[lib]
+name = "sea_orm_newtype_id_macros"
+path = "src/lib.rs"
+proc-macro = true
+
+[dependencies]
+nanoid = "0.4.0"
+
+proc-macro2 = "1"
+quote = "1"
+
+sea_orm_newtype_id_domain = { path = "../newtype_id_domain", version = "0.1.0" }
