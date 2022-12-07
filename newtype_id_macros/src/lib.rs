@@ -40,15 +40,13 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
       // Main Struct
       ////////////////////////////////////////////////
 
-      use sea_orm_newtype_id::PrefixedId;
-
       #[derive(Clone, Debug, Eq, PartialEq, Hash)]
       pub struct #struct_name(sea_orm_newtype_id::smol_str::SmolStr);
 
       impl #struct_name {
         /// Create a new ID
         pub fn new() -> Self {
-          #struct_name(Self::new_id().into())
+          #struct_name(<Self as sea_orm_newtype_id::PrefixedId>::new_id().into())
         }
 
         /// Extracts a string slice containing the entire id.

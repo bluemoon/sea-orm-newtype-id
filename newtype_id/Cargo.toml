@@ -13,6 +13,6 @@ name = "sea_orm_newtype_id"
 path = "src/lib.rs"
 
 [dependencies]
-sea_orm_newtype_id_macros = { path = "../newtype_id_macros", version = "0.1.1-alpha.0" }
-sea_orm_newtype_id_domain = { path = "../newtype_id_domain", version = "0.1.1-alpha.0" }
+sea_orm_newtype_id_macros = { path = "../newtype_id_macros", version = "0.1.1-alpha.1" }
+sea_orm_newtype_id_domain = { path = "../newtype_id_domain", version = "0.1.1-alpha.1" }
 smol_str = "0.1.23"
