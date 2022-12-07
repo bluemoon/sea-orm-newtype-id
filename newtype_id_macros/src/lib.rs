@@ -3,169 +3,195 @@
 //! We use a macro to generate the appropriate structs that we need
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
+use syn::{parse::Parse, ExprLit, Ident, Token};
 
 extern crate proc_macro;
 
+struct DefId {
+    struct_name: Ident,
+    prefix: ExprLit,
+}
+
+impl Parse for DefId {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        dbg!(input);
+
+        let struct_name: Ident = input.parse()?;
+        let _comma: Token![,] = input.parse()?;
+        let prefix: ExprLit = input.parse()?;
+
+        Ok(DefId {
+            struct_name,
+            prefix,
+        })
+    }
+}
+
 #[proc_macro]
-pub fn def_id(_input: TokenStream) -> TokenStream {
+pub fn def_id(tokens: TokenStream) -> TokenStream {
+    let DefId {
+        struct_name,
+        prefix,
+    } = syn::parse_macro_input!(tokens as DefId);
+
     let async_graphql_impl = FeatureAsyncGraphQL(cfg!(async_graphql));
 
     quote! {
-    ////////////////////////////////////////////////
-       // Main Struct
-       ////////////////////////////////////////////////
+      ////////////////////////////////////////////////
+      // Main Struct
+      ////////////////////////////////////////////////
 
-       #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-       pub struct $struct_name(smol_str::SmolStr);
+      #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+      pub struct #struct_name(smol_str::SmolStr);
 
-       impl $struct_name {
-         /// Create a new ID
-         pub fn new() -> Self {
-           $struct_name(Self::new_id().into())
+      impl #struct_name {
+        /// Create a new ID
+        pub fn new() -> Self {
+          #struct_name(Self::new_id().into())
+        }
+
+        /// Extracts a string slice containing the entire id.
+        #[inline(always)]
+        pub fn as_str(&self) -> &str {
+          self.0.as_str()
+        }
+      }
+
+      impl Default for $struct_name {
+         fn default() -> Self {
+           Self::new()
          }
+      }
 
-         /// Extracts a string slice containing the entire id.
-         #[inline(always)]
-         pub fn as_str(&self) -> &str {
-           self.0.as_str()
-         }
-       }
+      impl PartialEq<str> for $struct_name {
+        fn eq(&self, other: &str) -> bool {
+            self.as_str() == other
+        }
+      }
 
-       impl Default for $struct_name {
-          fn default() -> Self {
-            Self::new()
+      impl PartialEq<&str> for $struct_name {
+        fn eq(&self, other: &&str) -> bool {
+            self.as_str() == *other
+        }
+      }
+
+      impl PartialEq<String> for $struct_name {
+        fn eq(&self, other: &String) -> bool {
+            self.as_str() == other
+        }
+      }
+
+      impl std::fmt::Display for $struct_name {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+          self.0.fmt(f)
+        }
+      }
+
+     impl std::str::FromStr for $struct_name {
+      type Err = ParseIdError;
+
+      fn from_str(s: &str) -> Result<Self, Self::Err> {
+          if !s.starts_with(#prefix) $(
+              && !s.starts_with($alt_prefix)
+          )* {
+            // N.B. For debugging
+            eprintln!("bad id is: {} (expected: {:?})", s, $prefix);
+
+            Err(ParseIdError {
+                typename: stringify!($struct_name),
+                expected: stringify!(id to start with $prefix $(or $alt_prefix)*),
+            })
+          } else {
+            Ok($struct_name(s.into()))
           }
-       }
+        }
+      }
 
-       impl PartialEq<str> for $struct_name {
-         fn eq(&self, other: &str) -> bool {
-             self.as_str() == other
-         }
-       }
+      impl sea_orm_newtype_id::PrefixedId for #struct_name {
+        const PREFIX: &'static str = #prefix;
+      }
 
-       impl PartialEq<&str> for $struct_name {
-         fn eq(&self, other: &&str) -> bool {
-             self.as_str() == *other
-         }
-       }
+      // TODO: make this a config
+      impl serde::Serialize for #struct_name {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+          S: serde::ser::Serializer,
+        {
+          self.as_str().serialize(serializer)
+        }
+      }
 
-       impl PartialEq<String> for $struct_name {
-         fn eq(&self, other: &String) -> bool {
-             self.as_str() == other
-         }
-       }
+      impl<'de> serde::Deserialize<'de> for $struct_name {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+          D: serde::de::Deserializer<'de>,
+        {
+          let s: String = serde::Deserialize::deserialize(deserializer)?;
+          s.parse::<Self>().map_err(::serde::de::Error::custom)
+        }
+      }
 
-       impl std::fmt::Display for $struct_name {
-         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-           self.0.fmt(f)
-         }
-       }
+      impl From<$struct_name> for Value {
+        fn from(v: $struct_name) -> Self {
+          Value::String(Some(Box::new(v.as_str().to_string())))
+        }
+      }
 
-      impl std::str::FromStr for $struct_name {
-       type Err = ParseIdError;
+      impl ValueType for $struct_name {
+        fn try_from(v: Value) -> Result<Self, sea_orm::sea_query::ValueTypeErr> {
+          match v {
+            Value::String(Some(x)) => {
+              let v: String = *x;
+              Ok(Self(v.into()))
+            }
+            _ => Err(ValueTypeErr),
+          }
+        }
 
-       fn from_str(s: &str) -> Result<Self, Self::Err> {
-           if !s.starts_with($prefix) $(
-               && !s.starts_with($alt_prefix)
-           )* {
-             // N.B. For debugging
-             eprintln!("bad id is: {} (expected: {:?})", s, $prefix);
+        fn array_type() -> sea_orm::sea_query::ArrayType {
+          sea_orm::sea_query::ArrayType::String
+        }
 
-             Err(ParseIdError {
-                 typename: stringify!($struct_name),
-                 expected: stringify!(id to start with $prefix $(or $alt_prefix)*),
-             })
-           } else {
-             Ok($struct_name(s.into()))
-           }
-         }
-       }
+        fn type_name() -> String {
+          stringify!($type).to_owned()
+        }
 
-       impl PrefixedId for $struct_name {
-         const PREFIX: &'static str = $prefix;
-       }
+        fn column_type() -> ColumnType {
+          ColumnType::String(Some(26))
+        }
+      }
 
-       // TODO: make this a config
-       impl serde::Serialize for $struct_name {
-         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-         where
-           S: serde::ser::Serializer,
-         {
-           self.as_str().serialize(serializer)
-         }
-       }
+      impl sea_orm::TryFromU64 for $struct_name {
+        fn try_from_u64(_n: u64) -> Result<Self, sea_orm::DbErr> {
+          Err(sea_orm::DbErr::ConvertFromU64(stringify!($struct_name)))
+        }
+      }
 
-       impl<'de> serde::Deserialize<'de> for $struct_name {
-         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-         where
-           D: serde::de::Deserializer<'de>,
-         {
-           let s: String = serde::Deserialize::deserialize(deserializer)?;
-           s.parse::<Self>().map_err(::serde::de::Error::custom)
-         }
-       }
+      impl sea_orm::TryGetable for $struct_name {
+        fn try_get(
+          res: &sea_orm::QueryResult,
+          pre: &str,
+          col: &str,
+        ) -> Result<Self, sea_orm::TryGetError> {
+          let val: String = res.try_get(pre, col).map_err(sea_orm::TryGetError::DbErr)?;
+          Ok($struct_name(val.into()))
+        }
+      }
 
-       impl From<$struct_name> for Value {
-         fn from(v: $struct_name) -> Self {
-           Value::String(Some(Box::new(v.as_str().to_string())))
-         }
-       }
+      impl sea_orm::sea_query::Nullable for $struct_name {
+        fn null() -> sea_orm::Value {
+          sea_orm::Value::String(None)
+        }
+      }
 
-       impl ValueType for $struct_name {
-         fn try_from(v: Value) -> Result<Self, sea_orm::sea_query::ValueTypeErr> {
-           match v {
-             Value::String(Some(x)) => {
-               let v: String = *x;
-               Ok(Self(v.into()))
-             }
-             _ => Err(ValueTypeErr),
-           }
-         }
+      impl sea_orm::IntoActiveValue<Self> for $struct_name {
+        fn into_active_value(self) -> sea_orm::ActiveValue<Self> {
+          sea_orm::Set(self)
+        }
+      }
 
-         fn array_type() -> sea_orm::sea_query::ArrayType {
-           sea_orm::sea_query::ArrayType::String
-         }
-
-         fn type_name() -> String {
-           stringify!($type).to_owned()
-         }
-
-         fn column_type() -> ColumnType {
-           ColumnType::String(Some(26))
-         }
-       }
-
-       impl sea_orm::TryFromU64 for $struct_name {
-         fn try_from_u64(_n: u64) -> Result<Self, sea_orm::DbErr> {
-           Err(sea_orm::DbErr::ConvertFromU64(stringify!($struct_name)))
-         }
-       }
-
-       impl sea_orm::TryGetable for $struct_name {
-         fn try_get(
-           res: &sea_orm::QueryResult,
-           pre: &str,
-           col: &str,
-         ) -> Result<Self, sea_orm::TryGetError> {
-           let val: String = res.try_get(pre, col).map_err(sea_orm::TryGetError::DbErr)?;
-           Ok($struct_name(val.into()))
-         }
-       }
-
-       impl sea_orm::sea_query::Nullable for $struct_name {
-         fn null() -> sea_orm::Value {
-           sea_orm::Value::String(None)
-         }
-       }
-
-       impl sea_orm::IntoActiveValue<Self> for $struct_name {
-         fn into_active_value(self) -> sea_orm::ActiveValue<Self> {
-           sea_orm::Set(self)
-         }
-       }
-
-       #async_graphql_impl
-     }
+      #async_graphql_impl
+    }
     .into()
 }
 
