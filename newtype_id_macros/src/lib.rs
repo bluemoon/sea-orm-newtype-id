@@ -34,8 +34,6 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
         prefix,
     } = syn::parse_macro_input!(tokens as DefId);
 
-    // TODO: fixme
-    let alt_prefix = "TODO";
     let async_graphql_impl = FeatureAsyncGraphQL::new(cfg!(async_graphql), struct_name.clone());
     let serde_impl = FeatureSerde::new(cfg!(serde), struct_name.clone());
 
@@ -44,8 +42,10 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
       // Main Struct
       ////////////////////////////////////////////////
 
+      use sea_orm_newtype_id::PrefixedId;
+
       #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-      pub struct #struct_name(smol_str::SmolStr);
+      pub struct #struct_name(sea_orm_newtype_id::smol_str::SmolStr);
 
       impl #struct_name {
         /// Create a new ID
@@ -94,15 +94,13 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
       type Err = sea_orm_newtype_id::ParseIdError;
 
       fn from_str(s: &str) -> Result<Self, Self::Err> {
-          if !s.starts_with(#prefix) $(
-              && !s.starts_with(#alt_prefix)
-          )* {
+          if !s.starts_with(#prefix) {
             // N.B. For debugging
             eprintln!("bad id is: {} (expected: {:?})", s, #prefix);
 
-            Err(ParseIdError {
+            Err(sea_orm_newtype_id::ParseIdError {
                 typename: stringify!(#struct_name),
-                expected: stringify!(id to start with #prefix $(or $alt_prefix)*),
+                expected: stringify!(id to start with #prefix)
             })
           } else {
             Ok(#struct_name(s.into()))
@@ -139,14 +137,14 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
           stringify!($type).to_owned()
         }
 
-        fn column_type() -> sea_orm::ColumnType {
-          sea_orm::ColumnType::String(Some(26))
+        fn column_type() -> sea_orm::sea_query::ColumnType {
+          sea_orm::sea_query::ColumnType::String(Some(26))
         }
       }
 
       impl sea_orm::TryFromU64 for #struct_name {
-        fn try_from_u64(_n: u64) -> Result<Self, sea_orm::DbErr> {
-          Err(sea_orm::DbErr::ConvertFromU64(stringify!(#struct_name)))
+        fn try_from_u64(_n: u64) -> Result<Self, sea_orm::error::DbErr> {
+          Err(sea_orm::error::DbErr::ConvertFromU64(stringify!(#struct_name)))
         }
       }
 

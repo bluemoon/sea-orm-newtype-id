@@ -36,8 +36,8 @@ pub trait PrefixedId {
 /// Error for parsing
 #[derive(Clone, Debug)]
 pub struct ParseIdError {
-    typename: &'static str,
-    expected: &'static str,
+    pub typename: &'static str,
+    pub expected: &'static str,
 }
 
 impl std::fmt::Display for ParseIdError {
