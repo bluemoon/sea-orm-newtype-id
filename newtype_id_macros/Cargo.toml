@@ -1,6 +1,6 @@
 [package]
 name = "sea_orm_newtype_id_macros"
-version = "0.1.1-alpha.2"
+version = "0.1.1-alpha.3"
 edition = "2021"
 license = "MIT"
 authors = ["Bradford Toney <bradford.toney@gmail.com>"]
@@ -20,8 +20,8 @@ proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = ["extra-traits"] }
 
-sea_orm_newtype_id_domain = { path = "../newtype_id_domain", version = "0.1.1-alpha.2" }
+sea_orm_newtype_id_domain = { path = "../newtype_id_domain", version = "0.1.1-alpha.3" }
 
 [features]
-with_serde = []
-with_async_graphql = []
+with-serde = []
+with-async-graphql = []
