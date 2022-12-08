@@ -151,8 +151,14 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
           pre: &str,
           col: &str,
         ) -> Result<Self, sea_orm::TryGetError> {
-          let val: String = res.try_get(pre, col).map_err(sea_orm::TryGetError::DbErr)?;
-          Ok(#struct_name(val.into()))
+          let val: std::option::Option<String> = res.try_get(pre, col).ok();
+          if let Some(value) = val {
+            Ok(<#struct_name as std::str::FromStr>::from_str(&value).map_err(|e| {
+              sea_orm::TryGetError::DbErr(sea_orm::error::DbErr::Custom(String::from("failed to convert")))
+            })?)
+          } else {
+            Err(sea_orm::TryGetError::Null(col.to_string()))
+          }
         }
       }
 
