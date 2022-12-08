@@ -1,6 +1,6 @@
 [package]
 name = "sea_orm_newtype_id"
-version = "0.1.1-alpha.4"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 authors = ["Bradford Toney <bradford.toney@gmail.com>"]
@@ -13,8 +13,8 @@ name = "sea_orm_newtype_id"
 path = "src/lib.rs"
 
 [dependencies]
-sea_orm_newtype_id_macros = { path = "../newtype_id_macros", version = "0.1.1-alpha.4" }
-sea_orm_newtype_id_domain = { path = "../newtype_id_domain", version = "0.1.1-alpha.4" }
+sea_orm_newtype_id_macros = { path = "../newtype_id_macros", version = "0.1.2" }
+sea_orm_newtype_id_domain = { path = "../newtype_id_domain", version = "0.1.2" }
 smol_str = "0.1.23"
 
 [features]
