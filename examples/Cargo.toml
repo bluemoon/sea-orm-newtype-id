@@ -14,8 +14,6 @@ name = "example"
 path = "src/bin.rs"
 
 [dependencies]
-sea_orm_newtype_id = { path = "../newtype_id", version = "0.1.1-alpha.3", features = [
-    "with-async-graphql",
-    "with-serde",
+sea_orm_newtype_id = { path = "../newtype_id", version = "0.1.1-alpha.4", features = [
 ] }
 sea-orm = "0.10.0"

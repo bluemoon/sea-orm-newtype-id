@@ -32,8 +32,9 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
         prefix,
     } = syn::parse_macro_input!(tokens as DefId);
 
-    let async_graphql_impl = FeatureAsyncGraphQL::new(struct_name.clone());
-    let serde_impl = FeatureSerde::new(struct_name.clone());
+    let async_graphql_impl =
+        FeatureAsyncGraphQL::new(cfg!(feature = "with-async-graphql"), struct_name.clone());
+    let serde_impl = FeatureSerde::new(cfg!(feature = "with-serde"), struct_name.clone());
 
     let tokens = quote! {
       ////////////////////////////////////////////////
@@ -176,72 +177,81 @@ pub fn def_id(tokens: TokenStream) -> TokenStream {
 }
 
 struct FeatureSerde {
+    enabled: bool,
     struct_name: Ident,
 }
 
 impl FeatureSerde {
-    fn new(struct_name: Ident) -> Self {
-        Self { struct_name }
+    fn new(enabled: bool, struct_name: Ident) -> Self {
+        Self {
+            enabled,
+            struct_name,
+        }
     }
 }
 
 impl ToTokens for FeatureSerde {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let struct_name = self.struct_name.clone();
-        tokens.extend(quote! {
-            #[cfg(feature = "with-serde")]
-            impl serde::Serialize for #struct_name {
-              fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-              where
-                S: serde::ser::Serializer,
-              {
-                self.as_str().serialize(serializer)
-              }
-            }
+        if self.enabled {
+            tokens.extend(quote! {
+                impl serde::Serialize for #struct_name {
+                  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                  where
+                    S: serde::ser::Serializer,
+                  {
+                    self.as_str().serialize(serializer)
+                  }
+                }
 
-            #[cfg(feature = "with-serde")]
-            impl<'de> serde::Deserialize<'de> for #struct_name {
-              fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-              where
-                D: serde::de::Deserializer<'de>,
-              {
-                let s: String = serde::Deserialize::deserialize(deserializer)?;
-                s.parse::<Self>().map_err(::serde::de::Error::custom)
-              }
-            }
-        });
+                impl<'de> serde::Deserialize<'de> for #struct_name {
+                  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                  where
+                    D: serde::de::Deserializer<'de>,
+                  {
+                    let s: String = serde::Deserialize::deserialize(deserializer)?;
+                    s.parse::<Self>().map_err(::serde::de::Error::custom)
+                  }
+                }
+            });
+        }
     }
 }
 
 struct FeatureAsyncGraphQL {
+    enabled: bool,
     struct_name: Ident,
 }
 
 impl FeatureAsyncGraphQL {
-    fn new(struct_name: Ident) -> Self {
-        Self { struct_name }
+    fn new(enabled: bool, struct_name: Ident) -> Self {
+        Self {
+            enabled,
+            struct_name,
+        }
     }
 }
 
 impl ToTokens for FeatureAsyncGraphQL {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let struct_name = self.struct_name.clone();
-        tokens.extend(quote! {
-            #[cfg(feature = "with-async-graphql")]
-            #[async_graphql::Scalar]
-            impl async_graphql::ScalarType for #struct_name {
-              fn parse(value: async_graphql::Value) -> async_graphql::InputValueResult<Self> {
-                if let async_graphql::Value::String(value) = &value {
-                  Ok(#struct_name(value.into()))
-                } else {
-                  Err(async_graphql::InputValueError::expected_type(value))
-                }
-              }
+        if self.enabled {
+            tokens.extend(quote! {
+                #[async_graphql::Scalar]
+                impl async_graphql::ScalarType for #struct_name {
+                  fn parse(value: async_graphql::Value) -> async_graphql::InputValueResult<Self> {
+                    if let async_graphql::Value::String(value) = &value {
+                      Ok(#struct_name(value.into()))
+                    } else {
+                      Err(async_graphql::InputValueError::expected_type(value))
+                    }
+                  }
 
-              fn to_value(&self) -> async_graphql::Value {
-                async_graphql::Value::String(self.to_string())
-              }
-            }
-        })
+                  fn to_value(&self) -> async_graphql::Value {
+                    async_graphql::Value::String(self.to_string())
+                  }
+                }
+            })
+        }
     }
 }
